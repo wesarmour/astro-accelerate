@@ -25,7 +25,7 @@ AstroAccelerate supported CUDA&reg; SDK status
 |-------------|-----------------|
 | 8.0         | Y               |
 | 9.0         | Y               |
-| 10.0        | N               |
+| 10.0        | Y               |
 
 AstroAccelerate supported build system versions
 * AstroAccelerate can be compiled via `make` or via `CMake` (> 2.6.0) which then generates a Makefile that can be used to create the shared object library and an executable which links against the library.
