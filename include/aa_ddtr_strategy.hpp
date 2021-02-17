@@ -118,6 +118,11 @@ namespace astroaccelerate {
       return m_number_of_DBP_ranges;
     }
 	
+    /** \returns number of valid channels for dedispersion-by-parts. */
+    int number_of_valid_channels() const {
+      return m_number_of_valid_channels;
+    }
+	
     /** \returns pointer to the list of dedispersioni-by-parts (DBP) range beginnings and ends. */
     const int* DBP_ranges_pointer() const {
       return m_DBP_ranges.data();
@@ -236,7 +241,7 @@ namespace astroaccelerate {
     }
     
   private:
-    void extract_ranges_from_channel_mask(std::vector<int> *extracted_ranges, int *nDBPranges, const int *channel_mask, int nChannels);
+    void extract_ranges_from_channel_mask(std::vector<int> *extracted_ranges, int *nDBPranges, int *nvalidchannels, const int *channel_mask, int nChannels);
     bool strategy(const aa_ddtr_plan &plan, const size_t &free_memory, const bool &enable_analysis);
     bool m_ready; /**< The ready state of the ddtr strategy. */
     bool m_strategy_already_calculated; /**< A flag to indicate whether the strategy for the instance has already been allocated. */
@@ -262,6 +267,7 @@ namespace astroaccelerate {
     bool m_enable_msd_baseline_noise; /** Flag that enables or disables the use of msd baseline noise. */
     bool m_enable_dedispersion_by_parts; /** Flag that enables or disables the use of dedispersion-by-parts. */
     int m_number_of_DBP_ranges; /** counter for the dedispersion-by-parts (dbp) ranges */
+    int m_number_of_valid_channels; /** counter for the dedispersion-by-parts (dbp) ranges */
 	
 	std::vector<float> m_bandpass_normalization;
 	std::vector<int> m_channel_mask;

@@ -118,6 +118,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	ddtr_plan.bind_channel_mask_vector(custom_channel_mask);
+	ddtr_plan.set_enable_dedispersion_by_parts(true);
 
 	if (pipeline_manager.bind(ddtr_plan)) {
 		LOG(log_level::notice, "ddtr_plan bound successfully.");
