@@ -90,11 +90,13 @@ namespace astroaccelerate {
 		float              tstart_local;
 		int                oldBin;
 		int                pipeline_error;
+		int                number_of_DBP_ranges;
 
 		unsigned short     *d_DDTR_input;
 		float              *d_DDTR_output;
 		float              *d_dm_shifts;
 		float              *d_bandpass_normalization;
+		int                *d_DBP_ranges;
 
 		std::vector<float> dm_low;
 		std::vector<float> dm_high;
@@ -108,7 +110,6 @@ namespace astroaccelerate {
 		unsigned int *h_SPD_candidate_list_BW;
 		size_t        SPD_max_peak_size;
 		size_t        SPD_nCandidates;
-		
 
 		// fdas acceleration search settings
 		bool m_fdas_enable_custom_fft;
@@ -199,6 +200,17 @@ namespace astroaccelerate {
 				d_bandpass_normalization = NULL;
 			}
             
+			if(d_DBP_ranges!=NULL){
+				e = cudaFree(d_DBP_ranges);
+				if (e != cudaSuccess) {
+					pipeline_error = PIPELINE_ERROR_GPU_FREE_MEMORY_FAIL;
+					LOG(log_level::error, "Cannot free d_DBP_ranges memory: (" + std::string(cudaGetErrorString(e)) + ")");
+				}
+				else {
+					d_DBP_ranges = NULL;
+				}
+			}
+			
 			//----------------- Single pulse memory de-allocation --->
 			if(do_single_pulse_detection){
 				if(m_d_MSD_workarea!=NULL) {
@@ -359,6 +371,18 @@ namespace astroaccelerate {
 				LOG(log_level::error, "Could not allocate memory for d_bandpass_normalization using cudaMalloc in aa_permitted_pipelines_generic.hpp (" + std::string(cudaGetErrorString(e)) + ")");
 			}
 			
+			//Allocation of dedispersion-by-part ranges if required
+			if(m_ddtr_strategy.enable_dedispersion_by_parts() == true) {
+				e = cudaMalloc((void **) &d_DBP_ranges, number_of_DBP_ranges*2*sizeof(int));
+				if (e != cudaSuccess) {
+					pipeline_error = PIPELINE_ERROR_DDTR_GPU_MEMORY_FAIL;
+					LOG(log_level::error, "Could not allocate memory for d_bandpass_normalization using cudaMalloc in aa_permitted_pipelines_generic.hpp (" + std::string(cudaGetErrorString(e)) + ")");
+				}
+			}
+			else {
+				d_DBP_ranges = NULL;
+			}
+			
 			if(pipeline_error!=PIPELINE_ERROR_NO_ERROR) return false;
 			else return true;
 		}
@@ -456,6 +480,7 @@ namespace astroaccelerate {
 			dmshifts = dm_shifts.data();
 			maxshift = m_ddtr_strategy.maxshift();
 			max_ndms = m_ddtr_strategy.max_ndms();
+			number_of_DBP_ranges = m_ddtr_strategy.number_of_DBP_ranges();
 			nchans = m_ddtr_strategy.metadata().nchans();
 			nbits = m_ddtr_strategy.metadata().nbits();
 			failsafe = 0;
@@ -464,11 +489,13 @@ namespace astroaccelerate {
 			maxshift_original = maxshift;
 			nRanges = m_ddtr_strategy.get_nRanges();
 			tstart_local = 0.0;
+			
 
 			//Data for dedispersion
 			d_DDTR_input  = NULL;
 			d_DDTR_output = NULL;
 			d_dm_shifts   = NULL;
+			d_DBP_ranges  = NULL;
 			
 			//Data for zero_dm
 			d_bandpass_normalization = NULL;
@@ -482,6 +509,9 @@ namespace astroaccelerate {
 			}
 			else pipeline_error=PIPELINE_ERROR_ZERO_DM;
 			
+			if(m_ddtr_strategy.enable_dedispersion_by_parts() == true) {
+				cudaMemcpy(d_DBP_ranges, m_ddtr_strategy.DBP_ranges_pointer(), number_of_DBP_ranges*2*sizeof(int), cudaMemcpyHostToDevice);
+			}			
 			
 			//Allocate GPU memory for SPD (i.e. analysis)
 			if(do_single_pulse_detection && pipeline_error==0) {
@@ -750,6 +780,7 @@ namespace astroaccelerate {
 				int kernel_error;				
 				m_local_timer.Start();
 				kernel_error = dedisperse(dm_range, t_processed[dm_range][current_time_chunk], inBin.data(), dmshifts, d_DDTR_input, d_DDTR_output, d_dm_shifts, nchans, &tsamp, dm_low.data(), dm_step.data(), ndms, nbits, failsafe);
+				//TODO: add dedispersion-by-parts here
 				m_local_timer.Stop();
 				time_log.adding("DDTR","Dedispersion",m_local_timer.Elapsed());
 

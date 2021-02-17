@@ -103,6 +103,22 @@ int main(int argc, char *argv[]) {
 	//custom_bandpass_normalization.resize(filterbank_metadata.nchans(), 127.5);
 	//ddtr_plan.bind_bandpass_normalization(custom_bandpass_normalization.data(), custom_bandpass_normalization.size());
 
+	// adding channel mask.
+	std::vector<int> custom_channel_mask;
+	std::vector<int> valid_data_ranges;
+	custom_channel_mask.resize(filterbank_metadata.nchans(), 0);
+	valid_data_ranges.push_back(0); valid_data_ranges.push_back(128);
+	valid_data_ranges.push_back(256); valid_data_ranges.push_back(512);
+	valid_data_ranges.push_back(1024); valid_data_ranges.push_back(1536);
+	valid_data_ranges.push_back(filterbank_metadata.nchans() - 128); valid_data_ranges.push_back(filterbank_metadata.nchans());
+	int dbp_ranges = (int) (valid_data_ranges.size()/2);
+	for(int r=0; r<dbp_ranges; r++){
+		for(int s=valid_data_ranges[2*r]; s<valid_data_ranges[2*r+1]; s++){
+			custom_channel_mask[s] = 1;
+		}
+	}
+	ddtr_plan.bind_channel_mask_vector(custom_channel_mask);
+
 	if (pipeline_manager.bind(ddtr_plan)) {
 		LOG(log_level::notice, "ddtr_plan bound successfully.");
 	}

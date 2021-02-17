@@ -73,11 +73,11 @@ namespace astroaccelerate {
      */
     const dm user_dm(const size_t &i) const {
       if(i < m_user_dm.size()) {
-	return m_user_dm.at(i);
+        return m_user_dm.at(i);
       }
       else {
-	aa_ddtr_plan::dm empty_dm = {0.0, 0.0, 0.0, 0, 0};
-	return empty_dm;
+        aa_ddtr_plan::dm empty_dm = {0.0, 0.0, 0.0, 0, 0};
+        return empty_dm;
       }
     }
 
@@ -93,6 +93,8 @@ namespace astroaccelerate {
     float power() const {
       return m_power;
     }
+
+	// ---------------------- Flags ----------------------
 
     /**
      * \brief Set flag to enable or disable msd_baseline_noise reduction algorithm.
@@ -110,6 +112,8 @@ namespace astroaccelerate {
     bool enable_msd_baseline_noise() const {
       return m_enable_msd_baseline_noise;
     }
+	
+	//----------------------- Channel mask --------------------------
 	
     /**
      * \brief Set the custom bandpass normalization values for zerodm filtering.
@@ -149,13 +153,57 @@ namespace astroaccelerate {
 		}
 		else return NULL;
 	}
+	
+	//----------------------- Channel mask -------------------------->
+    /** \brief Set flag to enable or disable dedispersion-by-parts. */
+    bool set_enable_dedispersion_by_parts(const bool flag) {
+      m_enable_dedispersion_by_parts = flag;
+      return true;
+    }
+	
+    /** \returns The flag that enables or disables dedispersion-by-parts. */
+    bool enable_dedispersion_by_parts() const {
+      return m_enable_dedispersion_by_parts;
+    }
+	
+    /** \brief Set the custom channel mask values for channel zapping or dedispersion-by-parts. */
+    bool bind_channel_mask(int *custom_channel_mask, int channel_mask_size) {
+      if(channel_mask_size>0){
+        channel_mask.resize(channel_mask_size);
+        std::copy( custom_channel_mask, custom_channel_mask + channel_mask_size, channel_mask.begin() );
+        return true;
+      }
+      else {
+        return false;
+      }
+    }
+	
+    /** \brief Set the custom channel mask values for channel zapping or dedispersion-by-parts. */
+    bool bind_channel_mask_vector(std::vector<int> &custom_channel_mask) {
+      channel_mask = custom_channel_mask;
+      return true;
+    }
+	
+    /** \returns the size of the channel mask array. */
+    size_t channel_mask_size() const {
+      return(channel_mask.size());
+    }
+	
+    /** \returns the pointer to the channel mask array. */
+    const int* channel_mask_pointer() const {
+      if(channel_mask.size()>0){
+        return(channel_mask.data());
+      }
+      else return NULL;
+    }
     
   private:
     std::vector<dm> m_user_dm; /**< Storage for all supplied dm properties. */
     float m_power;
     bool m_enable_msd_baseline_noise; /** Flag to enable or disable msd_baseline_noise reduction algorithm. */
 	std::vector<float> bandpass_normalization;
-  
+	std::vector<int> channel_mask;
+    bool m_enable_dedispersion_by_parts;
   };
 } // namespace astroaccelerate
 #endif // ASTRO_ACCELERATE_AA_DDTR_PLAN_HPP

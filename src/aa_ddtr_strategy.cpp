@@ -10,16 +10,58 @@ namespace astroaccelerate {
   /**
    * Trivial constructor for aa_ddtr_strategy which will result in a strategy that cannot be ready. 
    */
-  aa_ddtr_strategy::aa_ddtr_strategy() : m_ready(false), m_strategy_already_calculated(false), m_selected_device(NULL), m_configured_for_analysis(false), is_setup(false), m_maxshift(0), m_num_tchunks(0), m_total_ndms(0), m_max_dm(0.0), m_maxshift_high(0), m_max_ndms(0), m_power(0.0), m_enable_msd_baseline_noise(false) {
+  aa_ddtr_strategy::aa_ddtr_strategy() : m_ready(false), m_strategy_already_calculated(false), m_selected_device(NULL), m_configured_for_analysis(false), is_setup(false), m_maxshift(0), m_num_tchunks(0), m_total_ndms(0), m_max_dm(0.0), m_maxshift_high(0), m_max_ndms(0), m_power(0.0), m_enable_msd_baseline_noise(false), m_enable_dedispersion_by_parts(false), m_number_of_DBP_ranges(0) {
     
   }
 
   /**
    * Constructor for aa_ddtr_strategy that computes the strategy upon construction, and sets the ready state of the instance of the class.
    */
-  aa_ddtr_strategy::aa_ddtr_strategy(const aa_ddtr_plan &plan, const aa_filterbank_metadata &metadata, const size_t &free_memory, const bool &enable_analysis, aa_device_info *selected_device) : m_ready(false), m_strategy_already_calculated(false), m_selected_device(selected_device), m_configured_for_analysis(enable_analysis), is_setup(false), m_metadata(metadata), m_maxshift(0), m_num_tchunks(0), m_total_ndms(0), m_max_dm(0.0), m_maxshift_high(0), m_max_ndms(0), m_power(plan.power()), m_enable_msd_baseline_noise(plan.enable_msd_baseline_noise()) {
+  aa_ddtr_strategy::aa_ddtr_strategy(const aa_ddtr_plan &plan, const aa_filterbank_metadata &metadata, const size_t &free_memory, const bool &enable_analysis, aa_device_info *selected_device) : m_ready(false), m_strategy_already_calculated(false), m_selected_device(selected_device), m_configured_for_analysis(enable_analysis), is_setup(false), m_metadata(metadata), m_maxshift(0), m_num_tchunks(0), m_total_ndms(0), m_max_dm(0.0), m_maxshift_high(0), m_max_ndms(0), m_power(plan.power()), m_enable_msd_baseline_noise(plan.enable_msd_baseline_noise()), m_enable_dedispersion_by_parts(plan.enable_dedispersion_by_parts()), m_number_of_DBP_ranges(0) {
     strategy(plan, free_memory, enable_analysis);
   }
+  
+  void aa_ddtr_strategy::extract_ranges_from_channel_mask(std::vector<int> *extracted_ranges, int *nDBPranges, const int *channel_mask, int nChannels) {
+	int start, end;
+	bool old;
+	int nranges = 0;
+
+	if (channel_mask[0] != 0) { // true
+		start = 1;
+		end = 0;
+		old = true;
+	} else {
+		start = 0;
+		end = 0;
+		old = false;
+	}
+
+	for (int f = 1; f < nChannels; f++) {
+		if (channel_mask[f] != old) {
+			if (channel_mask[f] != 0) { // true
+				// since old must be false this means a beginning of a dedispersion-by-parts (dbp) range;
+				start = f + 1;
+			}
+			if (channel_mask[f] == 0) { // false
+				// since old must be true this means an end of a dedispersion-by-parts (dbp) range;
+				end = f + 1;
+				extracted_ranges->push_back(start - 1);
+				extracted_ranges->push_back(end - 1);
+				nranges++;
+			}
+		}
+		old = channel_mask[f];
+	}
+
+	if (channel_mask[nChannels-1] != 0) { // true
+		// end of an open dedispersion-by-parts (dbp) range
+		end = nChannels + 1;
+		extracted_ranges->push_back(start - 1);
+		extracted_ranges->push_back(end - 1);
+		nranges++;
+	}
+	(*nDBPranges) = nranges;
+}
 
   /**
    * Implementation of the function that computes the strategy.
@@ -42,7 +84,7 @@ namespace astroaccelerate {
     const float fch1  = m_metadata.fch1();
     const float foff  = m_metadata.foff();
     const float tsamp = m_metadata.tsamp();
-    const int nbits = m_metadata.nbits();
+    const int nbits   = m_metadata.nbits();
 	
 	// Custom bandpass normalization for zerodm filtering
 	if(plan.bandpass_normalization_size() == (size_t) nchans){
@@ -67,6 +109,28 @@ namespace astroaccelerate {
 			printf("%f; ", m_bandpass_normalization[f]);
 		}
 		printf("\n");
+	}
+	
+	// Custom channel mask for channel zapping and dedispersion-by-parts
+	if(plan.channel_mask_size() == (size_t) nchans){
+		//m_channel_mask.resize(nchans);
+		//std::copy( plan.channel_mask_pointer(), plan.channel_mask_pointer() + nchans, m_channel_mask.begin() );
+		
+		if(m_enable_dedispersion_by_parts){
+			extract_ranges_from_channel_mask(&m_DBP_ranges, &m_number_of_DBP_ranges, plan.channel_mask_pointer(), nchans);
+			
+			printf("    Number of detected ranges: %d;\n", m_number_of_DBP_ranges);
+			printf("    Ranges:\n");
+			for (int f = 0; f<m_number_of_DBP_ranges; f++) {
+				printf("    start: %d; end: %d;\n", m_DBP_ranges[2*f], m_DBP_ranges[2*f+1]);
+			}
+			printf("\n");
+		}
+	}
+	else {
+		if(m_enable_dedispersion_by_parts) {
+			LOG(log_level::notice, "To perform dedispersion-by-parts channel mask must be set. Disabling dedispersion-by-parts and using normal dedispersion instead.");
+		}
 	}
 	
     

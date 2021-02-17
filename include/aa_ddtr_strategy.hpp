@@ -91,6 +91,42 @@ namespace astroaccelerate {
     std::vector<float> bandpass_normalization() const {
       return m_bandpass_normalization;
     }
+	
+	//--------------- Channel mask -------------------->
+    /** \returns size of the custom channel_mask. */
+    size_t channel_mask_size() const {
+      return (m_channel_mask.size());
+    }
+	
+    /** \returns pointer to the custom channel_mask. */
+    const int* channel_mask_pointer() const {
+      return (m_channel_mask.data());
+    }
+	
+    /** \returns custom channel_mask as set by the user in ddtr plan. */
+    std::vector<int> channel_mask() const {
+      return (m_channel_mask);
+    }
+	
+    /** \returns an bool to indicate whether the dedispersion-by-parts will be enabled */
+    bool enable_dedispersion_by_parts() const {
+      return (m_enable_dedispersion_by_parts);
+    }
+	
+    /** \returns number of dedispersion-by-parts (DBP) ranges. */
+    int number_of_DBP_ranges() const {
+      return m_number_of_DBP_ranges;
+    }
+	
+    /** \returns pointer to the list of dedispersioni-by-parts (DBP) range beginnings and ends. */
+    const int* DBP_ranges_pointer() const {
+      return m_DBP_ranges.data();
+    }
+	
+    /** \returns start and end for the DBP ranges. */
+    std::vector<int> DBP_ranges() const {
+      return (m_DBP_ranges);
+    }	
     
     /** \returns dm at an index in a std::vector of dm. */
     const aa_ddtr_plan::dm dm(const size_t &i) const {
@@ -200,6 +236,7 @@ namespace astroaccelerate {
     }
     
   private:
+    void extract_ranges_from_channel_mask(std::vector<int> *extracted_ranges, int *nDBPranges, const int *channel_mask, int nChannels);
     bool strategy(const aa_ddtr_plan &plan, const size_t &free_memory, const bool &enable_analysis);
     bool m_ready; /**< The ready state of the ddtr strategy. */
     bool m_strategy_already_calculated; /**< A flag to indicate whether the strategy for the instance has already been allocated. */
@@ -223,8 +260,13 @@ namespace astroaccelerate {
     std::vector<std::vector<int>> m_t_processed; /**< Is allocated in this class, and used elsewhere in the pipeline. */
     float ***output_buffer; /**< \brief 3D array that contains the output. \deprecated Has been moved to permitted_pipeline classes. Remove from source and header files.*/
     bool m_enable_msd_baseline_noise; /** Flag that enables or disables the use of msd baseline noise. */
+    bool m_enable_dedispersion_by_parts; /** Flag that enables or disables the use of dedispersion-by-parts. */
+    int m_number_of_DBP_ranges; /** counter for the dedispersion-by-parts (dbp) ranges */
 	
 	std::vector<float> m_bandpass_normalization;
+	std::vector<int> m_channel_mask;
+	std::vector<int> m_DBP_ranges;
+	
   };
 
 } // namespace astroaccelerate
